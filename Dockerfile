@@ -50,7 +50,8 @@ RUN wget https://github.com/hpc/mpifileutils/archive/v${MPI_FILE_UTILS_VERSION}.
 
 RUN rm -rf /deps
 
-# Generate some keys - This is absent the official documentation
+# Generate some SSH keys - This is absent the official documentation but is required when sshd runs
+# as part of the MPI Jub worker.
 RUN /usr/bin/ssh-keygen -A
 
 # The following several lines are from the mpi-operator base Dockerfile
