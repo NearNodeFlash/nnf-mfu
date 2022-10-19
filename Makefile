@@ -16,7 +16,7 @@
 # limitations under the License.
 
 VERSION ?= 0.0.1
-IMAGE_TAG_BASE ?= ghcu.io/nearnodeflash/mfu
+IMAGE_TAG_BASE ?= ghcr.io/nearnodeflash/mfu
 
 IMG ?= $(IMAGE_TAG_BASE):$(VERSION)
 
