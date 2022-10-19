@@ -15,13 +15,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM debian:buster
+FROM mpioperator/openmpi-builder AS builder
 
 RUN apt update
 
 RUN apt install -y --no-install-recommends \
-    g++ \
-    libopenmpi-dev \
     ca-certificates \
     wget tar make gcc cmake perl libbz2-dev pkg-config openssl libssl-dev libcap-dev
 
@@ -57,39 +55,18 @@ RUN wget https://github.com/libarchive/libarchive/releases/download/v3.5.3/libar
     && ./configure --prefix=/usr/lib \
     && make install
 
+RUN mkdir -p /mfu
 ARG MPI_FILE_UTILS_VERSION="0.11"
 RUN wget https://github.com/hpc/mpifileutils/archive/v${MPI_FILE_UTILS_VERSION}.tar.gz \
     && tar xfz v${MPI_FILE_UTILS_VERSION}.tar.gz \
     && mkdir build \
     && cd build \
-    && cmake ../mpifileutils-${MPI_FILE_UTILS_VERSION} -DWITH_DTCMP_PREFIX=/usr/lib -DWITH_LibCircle_PREFIX=/usr/lib -DWITH_LibArchive_PREFIX=/usr/lib -DCMAKE_INSTALL_PREFIX=/usr \
+    && cmake ../mpifileutils-${MPI_FILE_UTILS_VERSION} -DWITH_DTCMP_PREFIX=/usr/lib -DWITH_LibCircle_PREFIX=/usr/lib -DWITH_LibArchive_PREFIX=/usr/lib -DCMAKE_INSTALL_PREFIX=/mfu \
     && make install
 
 RUN rm -rf /deps
 
-# The following several lines are from the mpi-operator base Dockerfile
-# https://github.com/kubeflow/mpi-operator/blob/master/build/base/Dockerfile
+FROM mpioperator/openmpi
 
-ARG port=2222
-
-# Add priviledge separation directoy to run sshd as root.
-RUN mkdir -p /var/run/sshd
-# Add capability to run sshd as non-root.
-RUN setcap CAP_NET_BIND_SERVICE=+eip /usr/sbin/sshd
-
-# Allow OpenSSH to talk to containers without asking for confirmation
-# by disabling StrictHostKeyChecking.
-# mpi-operator mounts the .ssh folder from a Secret. For that to work, we need
-# to disable UserKnownHostsFile to avoid write permissions.
-# Disabling StrictModes avoids directory and files read permission checks.
-RUN sed -i "s/[ #]\(.*StrictHostKeyChecking \).*/ \1no/g" /etc/ssh/ssh_config \
-    && echo "    UserKnownHostsFile /dev/null" >> /etc/ssh/ssh_config \
-    && sed -i "s/[ #]\(.*Port \).*/ \1$port/g" /etc/ssh/ssh_config \
-    && sed -i "s/#\(StrictModes \).*/\1no/g" /etc/ssh/sshd_config \
-    && sed -i "s/#\(Port \).*/\1$port/g" /etc/ssh/sshd_config
-
-RUN useradd -m mpiuser
-WORKDIR /home/mpiuser
-# Configurations for running sshd as non-root.
-COPY --chown=mpiuser sshd_config .sshd_config
-RUN echo "Port $port" >> /home/mpiuser/.sshd_config
+COPY --from=builder /usr/lib/ /usr/lib
+COPY --from=builder /mfu/ /usr
