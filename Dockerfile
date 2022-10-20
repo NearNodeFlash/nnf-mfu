@@ -28,10 +28,9 @@ RUN apt install -y --no-install-recommends openmpi-bin openssh-server openssh-cl
 
 # Build and install MPI File Utils and all dependencies
 
-RUN mkdir -p /deps
+RUN mkdir -p /deps /mfu
 WORKDIR /deps
 
-RUN mkdir -p /mfu
 RUN wget https://github.com/hpc/libcircle/releases/download/v0.3/libcircle-0.3.0.tar.gz \
     && tar xfz libcircle-0.3.0.tar.gz \
     && cd libcircle-0.3.0 \
@@ -56,7 +55,6 @@ RUN wget https://github.com/llnl/dtcmp/releases/download/v1.1.1/dtcmp-1.1.1.tar.
     && ./configure --prefix=/deps/dtcmp/lib --with-lwgrp=/deps/lwgrp/lib \
     && make install
 
-RUN mkdir -p /mfu
 ARG MPI_FILE_UTILS_VERSION="0.11"
 RUN wget https://github.com/hpc/mpifileutils/archive/v${MPI_FILE_UTILS_VERSION}.tar.gz \
     && tar xfz v${MPI_FILE_UTILS_VERSION}.tar.gz \
