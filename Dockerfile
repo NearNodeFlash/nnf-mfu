@@ -31,28 +31,29 @@ RUN apt install -y --no-install-recommends openmpi-bin openssh-server openssh-cl
 RUN mkdir -p /deps
 WORKDIR /deps
 
+RUN mkdir -p /mfu
 RUN wget https://github.com/hpc/libcircle/releases/download/v0.3/libcircle-0.3.0.tar.gz \
     && tar xfz libcircle-0.3.0.tar.gz \
     && cd libcircle-0.3.0 \
-    && ./configure --prefix=/usr/lib \
-    && make install
-
-RUN wget https://github.com/llnl/lwgrp/releases/download/v1.0.3/lwgrp-1.0.3.tar.gz \
-    && tar xfz lwgrp-1.0.3.tar.gz \
-    && cd lwgrp-1.0.3 \
-    && ./configure --prefix=/usr/lib \
-    && make install
-
-RUN wget https://github.com/llnl/dtcmp/releases/download/v1.1.1/dtcmp-1.1.1.tar.gz \
-    && tar xfz dtcmp-1.1.1.tar.gz \
-    && cd dtcmp-1.1.1 \
-    && ./configure --prefix=/usr/lib --with-lwgrp=/usr/lib \
+    && ./configure --prefix=/deps/libcircle/lib \
     && make install
 
 RUN wget https://github.com/libarchive/libarchive/releases/download/v3.5.3/libarchive-3.5.3.tar.gz \
     && tar xfz libarchive-3.5.3.tar.gz \
     && cd libarchive-3.5.3 \
-    && ./configure --prefix=/usr/lib \
+    && ./configure --prefix=/deps/libarchive/lib \
+    && make install
+
+RUN wget https://github.com/llnl/lwgrp/releases/download/v1.0.3/lwgrp-1.0.3.tar.gz \
+    && tar xfz lwgrp-1.0.3.tar.gz \
+    && cd lwgrp-1.0.3 \
+    && ./configure --prefix=/deps/lwgrp/lib \
+    && make install
+
+RUN wget https://github.com/llnl/dtcmp/releases/download/v1.1.1/dtcmp-1.1.1.tar.gz \
+    && tar xfz dtcmp-1.1.1.tar.gz \
+    && cd dtcmp-1.1.1 \
+    && ./configure --prefix=/deps/dtcmp/lib --with-lwgrp=/deps/lwgrp/lib \
     && make install
 
 RUN mkdir -p /mfu
@@ -61,12 +62,18 @@ RUN wget https://github.com/hpc/mpifileutils/archive/v${MPI_FILE_UTILS_VERSION}.
     && tar xfz v${MPI_FILE_UTILS_VERSION}.tar.gz \
     && mkdir build \
     && cd build \
-    && cmake ../mpifileutils-${MPI_FILE_UTILS_VERSION} -DWITH_DTCMP_PREFIX=/usr/lib -DWITH_LibCircle_PREFIX=/usr/lib -DWITH_LibArchive_PREFIX=/usr/lib -DCMAKE_INSTALL_PREFIX=/mfu \
+    && cmake ../mpifileutils-${MPI_FILE_UTILS_VERSION} \
+        -DWITH_LibCircle_PREFIX=/deps/libcircle/lib \
+        -DWITH_DTCMP_PREFIX=/deps/dtcmp/lib \
+        -DWITH_LibArchive_PREFIX=/deps/libarchive/lib \
+        -DCMAKE_INSTALL_PREFIX=/mfu \
     && make install
-
-RUN rm -rf /deps
 
 FROM mpioperator/openmpi
 
-COPY --from=builder /usr/lib/ /usr/lib
+COPY --from=builder /deps/libcircle/lib/ /usr
+COPY --from=builder /deps/libarchive/lib/ /usr
+COPY --from=builder /deps/lwgrp/lib/ /usr
+COPY --from=builder /deps/dtcmp/lib/ /usr
+
 COPY --from=builder /mfu/ /usr
