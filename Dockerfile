@@ -15,13 +15,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM debian:buster
+FROM mpioperator/openmpi-builder:0.3.0 AS builder
 
 RUN apt update
 
 RUN apt install -y --no-install-recommends \
-    g++ \
-    libopenmpi-dev \
     ca-certificates \
     wget tar make gcc cmake perl libbz2-dev pkg-config openssl libssl-dev libcap-dev
 
@@ -30,31 +28,31 @@ RUN apt install -y --no-install-recommends openmpi-bin openssh-server openssh-cl
 
 # Build and install MPI File Utils and all dependencies
 
-RUN mkdir -p /deps
+RUN mkdir -p /deps /mfu
 WORKDIR /deps
 
 RUN wget https://github.com/hpc/libcircle/releases/download/v0.3/libcircle-0.3.0.tar.gz \
     && tar xfz libcircle-0.3.0.tar.gz \
     && cd libcircle-0.3.0 \
-    && ./configure --prefix=/usr/lib \
-    && make install
-
-RUN wget https://github.com/llnl/lwgrp/releases/download/v1.0.3/lwgrp-1.0.3.tar.gz \
-    && tar xfz lwgrp-1.0.3.tar.gz \
-    && cd lwgrp-1.0.3 \
-    && ./configure --prefix=/usr/lib \
-    && make install
-
-RUN wget https://github.com/llnl/dtcmp/releases/download/v1.1.1/dtcmp-1.1.1.tar.gz \
-    && tar xfz dtcmp-1.1.1.tar.gz \
-    && cd dtcmp-1.1.1 \
-    && ./configure --prefix=/usr/lib --with-lwgrp=/usr/lib \
+    && ./configure --prefix=/deps/libcircle/lib \
     && make install
 
 RUN wget https://github.com/libarchive/libarchive/releases/download/v3.5.3/libarchive-3.5.3.tar.gz \
     && tar xfz libarchive-3.5.3.tar.gz \
     && cd libarchive-3.5.3 \
-    && ./configure --prefix=/usr/lib \
+    && ./configure --prefix=/deps/libarchive/lib \
+    && make install
+
+RUN wget https://github.com/llnl/lwgrp/releases/download/v1.0.3/lwgrp-1.0.3.tar.gz \
+    && tar xfz lwgrp-1.0.3.tar.gz \
+    && cd lwgrp-1.0.3 \
+    && ./configure --prefix=/deps/lwgrp/lib \
+    && make install
+
+RUN wget https://github.com/llnl/dtcmp/releases/download/v1.1.1/dtcmp-1.1.1.tar.gz \
+    && tar xfz dtcmp-1.1.1.tar.gz \
+    && cd dtcmp-1.1.1 \
+    && ./configure --prefix=/deps/dtcmp/lib --with-lwgrp=/deps/lwgrp/lib \
     && make install
 
 ARG MPI_FILE_UTILS_VERSION="0.11"
@@ -62,34 +60,18 @@ RUN wget https://github.com/hpc/mpifileutils/archive/v${MPI_FILE_UTILS_VERSION}.
     && tar xfz v${MPI_FILE_UTILS_VERSION}.tar.gz \
     && mkdir build \
     && cd build \
-    && cmake ../mpifileutils-${MPI_FILE_UTILS_VERSION} -DWITH_DTCMP_PREFIX=/usr/lib -DWITH_LibCircle_PREFIX=/usr/lib -DWITH_LibArchive_PREFIX=/usr/lib -DCMAKE_INSTALL_PREFIX=/usr \
+    && cmake ../mpifileutils-${MPI_FILE_UTILS_VERSION} \
+        -DWITH_LibCircle_PREFIX=/deps/libcircle/lib \
+        -DWITH_DTCMP_PREFIX=/deps/dtcmp/lib \
+        -DWITH_LibArchive_PREFIX=/deps/libarchive/lib \
+        -DCMAKE_INSTALL_PREFIX=/mfu \
     && make install
 
-RUN rm -rf /deps
+FROM mpioperator/openmpi:0.3.0
 
-# The following several lines are from the mpi-operator base Dockerfile
-# https://github.com/kubeflow/mpi-operator/blob/master/build/base/Dockerfile
+COPY --from=builder /deps/libcircle/lib/ /usr
+COPY --from=builder /deps/libarchive/lib/ /usr
+COPY --from=builder /deps/lwgrp/lib/ /usr
+COPY --from=builder /deps/dtcmp/lib/ /usr
 
-ARG port=2222
-
-# Add priviledge separation directoy to run sshd as root.
-RUN mkdir -p /var/run/sshd
-# Add capability to run sshd as non-root.
-RUN setcap CAP_NET_BIND_SERVICE=+eip /usr/sbin/sshd
-
-# Allow OpenSSH to talk to containers without asking for confirmation
-# by disabling StrictHostKeyChecking.
-# mpi-operator mounts the .ssh folder from a Secret. For that to work, we need
-# to disable UserKnownHostsFile to avoid write permissions.
-# Disabling StrictModes avoids directory and files read permission checks.
-RUN sed -i "s/[ #]\(.*StrictHostKeyChecking \).*/ \1no/g" /etc/ssh/ssh_config \
-    && echo "    UserKnownHostsFile /dev/null" >> /etc/ssh/ssh_config \
-    && sed -i "s/[ #]\(.*Port \).*/ \1$port/g" /etc/ssh/ssh_config \
-    && sed -i "s/#\(StrictModes \).*/\1no/g" /etc/ssh/sshd_config \
-    && sed -i "s/#\(Port \).*/\1$port/g" /etc/ssh/sshd_config
-
-RUN useradd -m mpiuser
-WORKDIR /home/mpiuser
-# Configurations for running sshd as non-root.
-COPY --chown=mpiuser sshd_config .sshd_config
-RUN echo "Port $port" >> /home/mpiuser/.sshd_config
+COPY --from=builder /mfu/ /usr
