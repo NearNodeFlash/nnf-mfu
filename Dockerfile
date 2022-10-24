@@ -15,7 +15,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM mpioperator/openmpi-builder AS builder
+FROM mpioperator/openmpi-builder:0.3.0 AS builder
 
 RUN apt update
 
@@ -67,7 +67,7 @@ RUN wget https://github.com/hpc/mpifileutils/archive/v${MPI_FILE_UTILS_VERSION}.
         -DCMAKE_INSTALL_PREFIX=/mfu \
     && make install
 
-FROM mpioperator/openmpi
+FROM mpioperator/openmpi:0.3.0
 
 COPY --from=builder /deps/libcircle/lib/ /usr
 COPY --from=builder /deps/libarchive/lib/ /usr
