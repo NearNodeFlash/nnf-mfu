@@ -23,6 +23,9 @@ RUN apt install -y --no-install-recommends \
     ca-certificates \
     wget tar make gcc cmake perl libbz2-dev pkg-config openssl libssl-dev libcap-dev
 
+# These are needed to build mpifileutils from git
+RUN apt install -y git libattr1-dev
+
 RUN apt install -y --no-install-recommends openmpi-bin openssh-server openssh-client  \
     && rm -rf /var/lib/apt/lists/*
 
@@ -55,12 +58,13 @@ RUN wget https://github.com/llnl/dtcmp/releases/download/v1.1.1/dtcmp-1.1.1.tar.
     && ./configure --prefix=/deps/dtcmp/lib --with-lwgrp=/deps/lwgrp/lib \
     && make install
 
-ARG MPI_FILE_UTILS_VERSION="0.11"
-RUN wget https://github.com/hpc/mpifileutils/archive/v${MPI_FILE_UTILS_VERSION}.tar.gz \
-    && tar xfz v${MPI_FILE_UTILS_VERSION}.tar.gz \
+# Until the mpifileutils project accepts the PR work for adding UID/GID to dcp, we need to pull the
+# branch and build from source. See https://github.com/hpc/mpifileutils/pull/540. Once merged,
+# we will still need to pull from master to have dcp -U/-G support until the next release.
+RUN git clone -b add-dcp-uid-gid --depth 1 https://github.com/bdevcich-hpe/mpifileutils.git \
     && mkdir build \
     && cd build \
-    && cmake ../mpifileutils-${MPI_FILE_UTILS_VERSION} \
+    && cmake ../mpifileutils \
         -DWITH_LibCircle_PREFIX=/deps/libcircle/lib \
         -DWITH_DTCMP_PREFIX=/deps/dtcmp/lib \
         -DWITH_LibArchive_PREFIX=/deps/libarchive/lib \
