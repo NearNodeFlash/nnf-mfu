@@ -1,4 +1,4 @@
-# Copyright 2021, 2022 Hewlett Packard Enterprise Development LP
+# Copyright 2021-2023 Hewlett Packard Enterprise Development LP
 # Other additional copyright holders may be indicated within.
 #
 # The entirety of this work is licensed under the Apache License,
@@ -70,6 +70,9 @@ RUN git clone --depth 1 https://github.com/hpc/mpifileutils.git \
     && make install
 
 FROM mpioperator/openmpi:0.3.0
+
+# Provides nslookup for NNF Containers. Used for MPI Launcher InitContainers.
+RUN apt update && apt install -y dnsutils && rm -rf /var/lib/apt/lists/*
 
 COPY --from=builder /deps/libcircle/lib/ /usr
 COPY --from=builder /deps/libarchive/lib/ /usr
