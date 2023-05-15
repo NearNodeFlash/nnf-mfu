@@ -15,7 +15,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM mpioperator/openmpi-builder:0.3.0 AS builder
+FROM mpioperator/openmpi-builder:0.4.0 AS builder
 
 RUN apt update
 
@@ -69,7 +69,7 @@ RUN git clone --depth 1 https://github.com/hpc/mpifileutils.git \
         -DCMAKE_INSTALL_PREFIX=/mfu \
     && make install
 
-FROM mpioperator/openmpi:0.3.0
+FROM mpioperator/openmpi:0.4.0
 
 # Provides nslookup for NNF Containers. Used for MPI Launcher InitContainers.
 RUN apt update && apt install -y dnsutils && rm -rf /var/lib/apt/lists/*
