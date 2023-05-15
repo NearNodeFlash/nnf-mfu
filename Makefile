@@ -1,4 +1,4 @@
-# Copyright 2021, 2022 Hewlett Packard Enterprise Development LP
+# Copyright 2021-2023 Hewlett Packard Enterprise Development LP
 # Other additional copyright holders may be indicated within.
 #
 # The entirety of this work is licensed under the Apache License,
@@ -15,16 +15,27 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-VERSION ?= 0.0.1
+# NOTE: git-version-gen will generate a value for VERSION, unless you override it.
 IMAGE_TAG_BASE ?= ghcr.io/nearnodeflash/mfu
 
-IMG ?= $(IMAGE_TAG_BASE):$(VERSION)
+docker-build: VERSION ?= $(shell cat .version)
+docker-build: .version
+	docker build -t $(IMAGE_TAG_BASE):$(VERSION) .
 
-docker-build:
-	docker build -t ${IMG} .
+docker-push: VERSION ?= $(shell cat .version)
+docker-push: .version
+	docker push $(IMAGE_TAG_BASE):$(VERSION)
 
-docker-push:
-	docker push ${IMG}
+kind-push: VERSION ?= $(shell cat .version)
+kind-push: .version
+	kind load docker-image $(IMAGE_TAG_BASE):$(VERSION)
 
-kind-push:
-	kind load docker-image ${IMG}
+# Let .version be phony so that a git update to the workarea can be reflected
+# in it each time it's needed.
+.PHONY: .version
+.version: ## Uses the git-version-gen script to generate a tag version
+	./git-version-gen --fallback `git rev-parse HEAD` > .version
+
+clean:
+	rm -f .version
+  
