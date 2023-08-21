@@ -16,18 +16,33 @@
 # limitations under the License.
 
 # NOTE: git-version-gen will generate a value for VERSION, unless you override it.
-IMAGE_TAG_BASE ?= ghcr.io/nearnodeflash/mfu
+IMAGE_TAG_BASE ?= ghcr.io/nearnodeflash/nnf-mfu
 
 docker-build: VERSION ?= $(shell cat .version)
 docker-build: .version
-	docker build -t $(IMAGE_TAG_BASE):$(VERSION) .
+	docker build --target production -t $(IMAGE_TAG_BASE):$(VERSION) .
+
+docker-build-debug: VERSION ?= $(shell cat .version)
+docker-build-debug: IMAGE_TAG_BASE := $(IMAGE_TAG_BASE)-debug
+docker-build-debug: .version
+	docker build --target debug -t $(IMAGE_TAG_BASE):$(VERSION) .
 
 docker-push: VERSION ?= $(shell cat .version)
 docker-push: .version
 	docker push $(IMAGE_TAG_BASE):$(VERSION)
 
+docker-push-debug: VERSION ?= $(shell cat .version)
+docker-push-debug: IMAGE_TAG_BASE := $(IMAGE_TAG_BASE)-debug
+docker-push-debug: .version
+	docker push $(IMAGE_TAG_BASE):$(VERSION)
+
 kind-push: VERSION ?= $(shell cat .version)
 kind-push: .version
+	kind load docker-image $(IMAGE_TAG_BASE):$(VERSION)
+
+kind-push-debug: VERSION ?= $(shell cat .version)
+kind-push-debug: IMAGE_TAG_BASE := $(IMAGE_TAG_BASE)-debug
+kind-push-debug: .version
 	kind load docker-image $(IMAGE_TAG_BASE):$(VERSION)
 
 # Let .version be phony so that a git update to the workarea can be reflected

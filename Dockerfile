@@ -17,20 +17,14 @@
 
 FROM mpioperator/openmpi-builder:0.4.0 AS builder
 
-RUN apt update
-
-RUN apt install -y --no-install-recommends \
+RUN apt-get update && apt-get install -y \
     ca-certificates \
-    wget tar make gcc cmake perl libbz2-dev pkg-config openssl libssl-dev libcap-dev
-
-# These are needed to build mpifileutils from git
-RUN apt install -y git libattr1-dev
-
-RUN apt install -y --no-install-recommends openmpi-bin openssh-server openssh-client  \
+    wget tar make gcc cmake perl libbz2-dev pkg-config openssl libssl-dev libcap-dev \
+    git libattr1-dev \
+    openmpi-bin openssh-server openssh-client  \
     && rm -rf /var/lib/apt/lists/*
 
 # Build and install MPI File Utils and all dependencies
-
 RUN mkdir -p /deps /mfu
 WORKDIR /deps
 
@@ -63,16 +57,38 @@ RUN git clone --depth 1 https://github.com/hpc/mpifileutils.git \
     && mkdir build \
     && cd build \
     && cmake ../mpifileutils \
-        -DWITH_LibCircle_PREFIX=/deps/libcircle/lib \
-        -DWITH_DTCMP_PREFIX=/deps/dtcmp/lib \
-        -DWITH_LibArchive_PREFIX=/deps/libarchive/lib \
-        -DCMAKE_INSTALL_PREFIX=/mfu \
+    -DWITH_LibCircle_PREFIX=/deps/libcircle/lib \
+    -DWITH_DTCMP_PREFIX=/deps/dtcmp/lib \
+    -DWITH_LibArchive_PREFIX=/deps/libarchive/lib \
+    -DCMAKE_INSTALL_PREFIX=/mfu \
     && make install
 
-FROM mpioperator/openmpi:0.4.0
+
+# Build mfu with debugging symbols
+FROM builder AS builder-debug
+
+WORKDIR /deps
+RUN cd build \
+    && cmake ../mpifileutils \
+    -DWITH_LibCircle_PREFIX=/deps/libcircle/lib \
+    -DWITH_DTCMP_PREFIX=/deps/dtcmp/lib \
+    -DWITH_LibArchive_PREFIX=/deps/libarchive/lib \
+    -DCMAKE_INSTALL_PREFIX=/mfu \
+    -DCMAKE_BUILD_TYPE=Debug \
+    && make install
+
+
+RUN wget https://download.open-mpi.org/release/open-mpi/v4.1/openmpi-4.1.0.tar.gz \
+    && gunzip -c openmpi-4.1.0.tar.gz | tar xf - \
+    && cd openmpi-4.1.0 \
+    && ./configure --prefix=/opt/openmpi-4.1.0-debug --enable-debug \
+    && make all install
+
+###############################################################################
+FROM mpioperator/openmpi:0.4.0 as production
 
 # Provides nslookup for NNF Containers. Used for MPI Launcher InitContainers.
-RUN apt update && apt install -y dnsutils && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y dnsutils && rm -rf /var/lib/apt/lists/*
 
 COPY --from=builder /deps/libcircle/lib/ /usr
 COPY --from=builder /deps/libarchive/lib/ /usr
@@ -80,3 +96,25 @@ COPY --from=builder /deps/lwgrp/lib/ /usr
 COPY --from=builder /deps/dtcmp/lib/ /usr
 
 COPY --from=builder /mfu/ /usr
+
+###############################################################################
+# Pull in the debugging symbols on top of production image
+FROM production AS debug
+
+# Override the production version of MFU with debug
+COPY --from=builder-debug /mfu/ /usr
+
+# Override the production version of openmpi with debug
+# Remove installed version of openmpi
+RUN apt-get remove -y openmpi-bin
+COPY --from=builder-debug /opt/openmpi-4.1.0-debug/ /usr
+
+# Install gdb and debugging tools
+RUN apt-get update && apt-get install -y \
+    gdb \
+    file \
+    && rm -rf /var/lib/apt/lists/*
+
+# Verify both versions have debug symbols
+RUN file /usr/bin/orterun | grep "with debug_info"
+RUN file /usr/bin/dcp | grep "with debug_info"
