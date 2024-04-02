@@ -89,7 +89,9 @@ RUN wget https://download.open-mpi.org/release/open-mpi/v4.1/openmpi-4.1.0.tar.g
 FROM mpioperator/openmpi:0.4.0 as production
 
 # Provides nslookup for NNF Containers. Used for MPI Launcher InitContainers.
-RUN apt-get update && apt-get install -y dnsutils && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y \
+    dnsutils iputils-ping \
+    && rm -rf /var/lib/apt/lists/*
 
 COPY --from=builder /deps/libcircle/lib/ /usr
 COPY --from=builder /deps/libarchive/lib/ /usr
