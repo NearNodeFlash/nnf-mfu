@@ -55,7 +55,7 @@ RUN wget https://github.com/llnl/dtcmp/releases/download/v1.1.1/dtcmp-1.1.1.tar.
 # Until a new release of mpifileutils is cut, we need to use a tagged commit on
 # our fork to include our dcp changes (i.e. --uid, --gid)
 RUN git clone --depth 1 https://github.com/nearnodeflash/mpifileutils.git --branch mknod-debug \
-    && cd mpifileutils && git checkout 15f24ec199b9a6ab5a4c8d1f7188976b149d431f && cd .. \
+    && cd mpifileutils && git checkout 989669b9c4b605f33183d94787334b2c49415783 && cd .. \
     && mkdir build \
     && cd build \
     && cmake ../mpifileutils \
