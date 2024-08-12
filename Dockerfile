@@ -1,4 +1,4 @@
-# Copyright 2021-2023 Hewlett Packard Enterprise Development LP
+# Copyright 2021-2024 Hewlett Packard Enterprise Development LP
 # Other additional copyright holders may be indicated within.
 #
 # The entirety of this work is licensed under the Apache License,
@@ -86,7 +86,7 @@ RUN wget https://download.open-mpi.org/release/open-mpi/v4.1/openmpi-4.1.0.tar.g
     && make all install
 
 ###############################################################################
-FROM mpioperator/openmpi:0.4.0 as production
+FROM mpioperator/openmpi:0.4.0 AS production
 
 # Provides nslookup for NNF Containers. Used for MPI Launcher InitContainers.
 RUN apt-get update && apt-get install -y dnsutils && rm -rf /var/lib/apt/lists/*
