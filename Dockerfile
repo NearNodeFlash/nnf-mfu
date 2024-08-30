@@ -98,6 +98,13 @@ COPY --from=builder /deps/dtcmp/lib/ /usr
 
 COPY --from=builder /mfu/ /usr
 
+# Increase the number of allowed incomming ssh connections to support many mpirun applications
+# attempting to hit a mpi host/worker (i.e. rabbit node) all at once. A compute node has 192 cores,
+# and each rabbit has 16 compute nodes. This means 3072 (192*16) ssh connections could come in at
+# once.  Round to the nearest power of 2 for good measure.
+RUN sed -i "s/[ #]\(.*MaxSessions\).*/\1 4096/g" /etc/ssh/sshd_config \
+    && sed -i "s/[ #]\(.*MaxStartups\).*/\1 4096/g" /etc/ssh/sshd_config
+
 ###############################################################################
 # Pull in the debugging symbols on top of production image
 FROM production AS debug
