@@ -112,6 +112,9 @@ FROM production AS debug
 # Override the production version of MFU with debug
 COPY --from=builder-debug /mfu/ /usr
 
+# Copy in the source
+COPY --from=builder /deps /deps
+
 # Override the production version of openmpi with debug
 # Remove installed version of openmpi
 RUN apt-get remove -y openmpi-bin
