@@ -14,15 +14,28 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+ARG OPENMPI_VERSION=4.1.6
 
-FROM mpioperator/openmpi-builder:0.4.0 AS builder
+FROM mpioperator/openmpi-builder:v0.5.0 AS builder
+
+ARG OPENMPI_VERSION
+ENV OPENMPI_VERSION=$OPENMPI_VERSION
 
 RUN apt-get update && apt-get install -y \
     ca-certificates \
     wget tar make gcc cmake perl libbz2-dev pkg-config openssl libssl-dev libcap-dev \
     git libattr1-dev \
-    openmpi-bin openssh-server openssh-client  \
+    openssh-server openssh-client  \
     && rm -rf /var/lib/apt/lists/*
+
+# Remove the OS binary of openmpi and build from source
+RUN apt-get remove -y openmpi-bin
+RUN wget https://download.open-mpi.org/release/open-mpi/v4.1/openmpi-$OPENMPI_VERSION.tar.gz \
+    && gunzip -c openmpi-$OPENMPI_VERSION.tar.gz | tar xf - \
+    && cd openmpi-$OPENMPI_VERSION \
+    && ./configure --prefix=/opt/openmpi-$OPENMPI_VERSION \
+    && make all install
+RUN cp -r /opt/openmpi-$OPENMPI_VERSION/* /usr
 
 # Build and install MPI File Utils and all dependencies
 RUN mkdir -p /deps /mfu
@@ -54,7 +67,10 @@ RUN wget https://github.com/llnl/dtcmp/releases/download/v1.1.1/dtcmp-1.1.1.tar.
 
 # Until a new release of mpifileutils is cut, we need to use a tagged commit on
 # our fork to include our dcp changes (i.e. --uid, --gid)
-RUN git clone --depth 1 https://github.com/nearnodeflash/mpifileutils.git --branch nnf-stable \
+#
+# TODO: Once https://github.com/hpc/mpifileutils/pull/586/files is merged, create a tag and replace
+# drop-egid-euid branch.
+RUN git clone --depth 1 https://github.com/nearnodeflash/mpifileutils.git --branch drop-egid-euid \
     && mkdir build \
     && cd build \
     && cmake ../mpifileutils \
@@ -68,6 +84,9 @@ RUN git clone --depth 1 https://github.com/nearnodeflash/mpifileutils.git --bran
 # Build mfu with debugging symbols
 FROM builder AS builder-debug
 
+ARG OPENMPI_VERSION
+ENV OPENMPI_VERSION=$OPENMPI_VERSION
+
 WORKDIR /deps
 RUN cd build \
     && cmake ../mpifileutils \
@@ -79,14 +98,17 @@ RUN cd build \
     && make install
 
 
-RUN wget https://download.open-mpi.org/release/open-mpi/v4.1/openmpi-4.1.0.tar.gz \
-    && gunzip -c openmpi-4.1.0.tar.gz | tar xf - \
-    && cd openmpi-4.1.0 \
-    && ./configure --prefix=/opt/openmpi-4.1.0-debug --enable-debug \
+RUN wget https://download.open-mpi.org/release/open-mpi/v4.1/openmpi-$OPENMPI_VERSION.tar.gz \
+    && gunzip -c openmpi-$OPENMPI_VERSION.tar.gz | tar xf - \
+    && cd openmpi-$OPENMPI_VERSION \
+    && ./configure --prefix=/opt/openmpi-$OPENMPI_VERSION-debug --enable-debug \
     && make all install
 
 ###############################################################################
-FROM mpioperator/openmpi:0.4.0 AS production
+FROM mpioperator/openmpi:v0.5.0 AS production
+
+ARG OPENMPI_VERSION
+ENV OPENMPI_VERSION=$OPENMPI_VERSION
 
 # Provides nslookup for NNF Containers. Used for MPI Launcher InitContainers.
 RUN apt-get update && apt-get install -y dnsutils && rm -rf /var/lib/apt/lists/*
@@ -97,6 +119,10 @@ COPY --from=builder /deps/lwgrp/lib/ /usr
 COPY --from=builder /deps/dtcmp/lib/ /usr
 
 COPY --from=builder /mfu/ /usr
+
+RUN apt-get remove -y openmpi-bin
+COPY --from=builder /opt/openmpi-$OPENMPI_VERSION /opt/openmpi-$OPENMPI_VERSION
+RUN cp -r /opt/openmpi-$OPENMPI_VERSION/* /usr && rm -rf /openmpi*
 
 # Increase the number of allowed incomming ssh connections to support many mpirun applications
 # attempting to hit a mpi host/worker (i.e. rabbit node) all at once. A compute node has 192 cores,
@@ -109,13 +135,17 @@ RUN sed -i "s/[ #]\(.*MaxSessions\).*/\1 4096/g" /etc/ssh/sshd_config \
 # Pull in the debugging symbols on top of production image
 FROM production AS debug
 
+ARG OPENMPI_VERSION
+ENV OPENMPI_VERSION=$OPENMPI_VERSION
+
 # Override the production version of MFU with debug
 COPY --from=builder-debug /mfu/ /usr
 
 # Override the production version of openmpi with debug
 # Remove installed version of openmpi
 RUN apt-get remove -y openmpi-bin
-COPY --from=builder-debug /opt/openmpi-4.1.0-debug/ /usr
+COPY --from=builder-debug /opt/openmpi-$OPENMPI_VERSION-debug/ /opt/openmpi-$OPENMPI_VERSION-debug/
+RUN cp -r /opt/openmpi-$OPENMPI_VERSION-debug/* /usr && rm -rf /openmpi*
 
 # Install gdb and debugging tools
 RUN apt-get update && apt-get install -y \
