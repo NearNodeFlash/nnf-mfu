@@ -70,7 +70,7 @@ RUN wget https://github.com/llnl/dtcmp/releases/download/v1.1.1/dtcmp-1.1.1.tar.
 #
 # TODO: Once https://github.com/hpc/mpifileutils/pull/586/files is merged, create a tag and replace
 # drop-egid-euid branch.
-RUN git clone --depth 1 https://github.com/nearnodeflash/mpifileutils.git --branch drop-egid-euid \
+RUN git clone --depth 1 https://github.com/nearnodeflash/mpifileutils.git --branch drop-egid-euid-review \
     && mkdir build \
     && cd build \
     && cmake ../mpifileutils \
