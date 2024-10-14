@@ -67,10 +67,7 @@ RUN wget https://github.com/llnl/dtcmp/releases/download/v1.1.1/dtcmp-1.1.1.tar.
 
 # Until a new release of mpifileutils is cut, we need to use a tagged commit on
 # our fork to include our dcp changes (i.e. --uid, --gid)
-#
-# TODO: Once https://github.com/hpc/mpifileutils/pull/586/files is merged, create a tag and replace
-# drop-egid-euid branch.
-RUN git clone --depth 1 https://github.com/nearnodeflash/mpifileutils.git --branch drop-egid-euid \
+RUN git clone --depth 1 https://github.com/nearnodeflash/mpifileutils.git --branch nnf-stable-v2 \
     && mkdir build \
     && cd build \
     && cmake ../mpifileutils \
