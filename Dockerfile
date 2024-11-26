@@ -14,9 +14,13 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-ARG OPENMPI_VERSION=4.1.6
 
-FROM mpioperator/openmpi-builder:v0.5.0 AS builder
+# These ARGs must be before the first FROM. This allows them to be valid for
+# use in FROM instructions.
+ARG MPI_OPERATOR_VERSION=0.6.0
+ARG OPENMPI_VERSION=4.1.7
+
+FROM mpioperator/openmpi-builder:v$MPI_OPERATOR_VERSION AS builder
 
 ARG OPENMPI_VERSION
 ENV OPENMPI_VERSION=$OPENMPI_VERSION
@@ -102,7 +106,7 @@ RUN wget https://download.open-mpi.org/release/open-mpi/v4.1/openmpi-$OPENMPI_VE
     && make all install
 
 ###############################################################################
-FROM mpioperator/openmpi:v0.5.0 AS production
+FROM mpioperator/openmpi:v$MPI_OPERATOR_VERSION AS production
 
 ARG OPENMPI_VERSION
 ENV OPENMPI_VERSION=$OPENMPI_VERSION
