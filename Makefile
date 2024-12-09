@@ -1,4 +1,4 @@
-# Copyright 2021-2023 Hewlett Packard Enterprise Development LP
+# Copyright 2021-2024 Hewlett Packard Enterprise Development LP
 # Other additional copyright holders may be indicated within.
 #
 # The entirety of this work is licensed under the Apache License,
@@ -19,8 +19,9 @@
 IMAGE_TAG_BASE ?= ghcr.io/nearnodeflash/nnf-mfu
 
 docker-build: VERSION ?= $(shell cat .version)
+docker-build: TARGET ?= production
 docker-build: .version
-	docker build --target production -t $(IMAGE_TAG_BASE):$(VERSION) .
+	docker build --target $(TARGET) -t $(IMAGE_TAG_BASE):$(VERSION) .
 
 docker-build-debug: VERSION ?= $(shell cat .version)
 docker-build-debug: IMAGE_TAG_BASE := $(IMAGE_TAG_BASE)-debug
