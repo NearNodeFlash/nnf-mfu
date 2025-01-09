@@ -125,6 +125,9 @@ RUN apt-get remove -y openmpi-bin
 COPY --from=builder /opt/openmpi-$OPENMPI_VERSION /opt/openmpi-$OPENMPI_VERSION
 RUN cp -r /opt/openmpi-$OPENMPI_VERSION/* /usr && rm -rf /openmpi*
 
+# Remove timezone configuration so we can inherit from host
+RUN rm -rf /etc/timezone && rm -rf /etc/localtime
+
 # Increase the number of allowed incomming ssh connections to support many mpirun applications
 # attempting to hit a mpi host/worker (i.e. rabbit node) all at once. A compute node has 192 cores,
 # and each rabbit has 16 compute nodes. This means 3072 (192*16) ssh connections could come in at
