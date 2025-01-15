@@ -1,4 +1,4 @@
-# Copyright 2021-2024 Hewlett Packard Enterprise Development LP
+# Copyright 2021-2025 Hewlett Packard Enterprise Development LP
 # Other additional copyright holders may be indicated within.
 #
 # The entirety of this work is licensed under the Apache License,
@@ -18,24 +18,31 @@
 # These ARGs must be before the first FROM. This allows them to be valid for
 # use in FROM instructions.
 ARG MPI_OPERATOR_VERSION=0.6.0
+# See https://www.open-mpi.org/software/ompi/v4.1/ for releases and their
+# checkums.
 ARG OPENMPI_VERSION=4.1.7
+ARG OPENMPI_MD5=787d2bc8b3db336db97c34236934b3df
 
 FROM mpioperator/openmpi-builder:v$MPI_OPERATOR_VERSION AS builder
 
 ARG OPENMPI_VERSION
+ARG OPENMPI_MD5
 ENV OPENMPI_VERSION=$OPENMPI_VERSION
+ENV OPENMPI_MD5=$OPENMPI_MD5
 
 RUN apt-get update && apt-get install -y \
     ca-certificates \
     wget tar make gcc cmake perl libbz2-dev pkg-config openssl libssl-dev libcap-dev \
     git libattr1-dev \
     openssh-server openssh-client  \
-    && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/* \
+    && update-ca-certificates
 
 # Remove the OS binary of openmpi and build from source
 RUN apt-get remove -y openmpi-bin
-RUN wget https://download.open-mpi.org/release/open-mpi/v4.1/openmpi-$OPENMPI_VERSION.tar.gz \
-    && gunzip -c openmpi-$OPENMPI_VERSION.tar.gz | tar xf - \
+RUN wget --no-check-certificate https://download.open-mpi.org/release/open-mpi/v4.1/openmpi-$OPENMPI_VERSION.tar.gz
+RUN [ $(md5sum openmpi-$OPENMPI_VERSION.tar.gz | awk '{print $1}') = "$OPENMPI_MD5" ]
+RUN gunzip -c openmpi-$OPENMPI_VERSION.tar.gz | tar xf - \
     && cd openmpi-$OPENMPI_VERSION \
     && ./configure --prefix=/opt/openmpi-$OPENMPI_VERSION \
     && make all install
@@ -86,7 +93,9 @@ RUN git clone --depth 1 https://github.com/nearnodeflash/mpifileutils.git --bran
 FROM builder AS builder-debug
 
 ARG OPENMPI_VERSION
+ARG OPENMPI_MD5
 ENV OPENMPI_VERSION=$OPENMPI_VERSION
+ENV OPENMPI_MD5=$OPENMPI_MD5
 
 WORKDIR /deps
 RUN cd build \
@@ -99,8 +108,9 @@ RUN cd build \
     && make install
 
 
-RUN wget https://download.open-mpi.org/release/open-mpi/v4.1/openmpi-$OPENMPI_VERSION.tar.gz \
-    && gunzip -c openmpi-$OPENMPI_VERSION.tar.gz | tar xf - \
+RUN wget https://download.open-mpi.org/release/open-mpi/v4.1/openmpi-$OPENMPI_VERSION.tar.gz
+RUN [ $(md5sum openmpi-$OPENMPI_VERSION.tar.gz | awk '{print $1}') = "$OPENMPI_MD5" ]
+RUN gunzip -c openmpi-$OPENMPI_VERSION.tar.gz | tar xf - \
     && cd openmpi-$OPENMPI_VERSION \
     && ./configure --prefix=/opt/openmpi-$OPENMPI_VERSION-debug --enable-debug \
     && make all install
