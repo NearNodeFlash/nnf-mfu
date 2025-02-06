@@ -6,7 +6,7 @@ Utils](https://github.com/hpc/mpifileutils) commands.
 
 The foundation of this image relies on
 [mpi-operator](https://github.com/kubeflow/mpi-operator) with the addition of
-MPI File Utils that have been constructed from source. At the time of this writing, the mpi-operator image installs v4.1.0 of Open MPI.
+MPI File Utils that have been constructed from source.
 
 This image is primarily used for NNF Data Movement and as a base image for running NNF User Containers.
 
