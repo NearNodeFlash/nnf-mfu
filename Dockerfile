@@ -18,25 +18,44 @@
 # These ARGs must be before the first FROM. This allows them to be valid for
 # use in FROM instructions.
 ARG MPI_OPERATOR_VERSION=0.6.0
-# See https://www.open-mpi.org/software/ompi/v4.1/ for releases and their
-# checkums.
+# See https://www.open-mpi.org/software/ompi/v4.1/ for releases and their checksums.
 ARG OPENMPI_VERSION=4.1.7
 ARG OPENMPI_MD5=787d2bc8b3db336db97c34236934b3df
+# Default to the latest cray 2.15 release
+ARG LUSTRE_VERSION=cray-2.15.B19
 
 FROM mpioperator/openmpi-builder:v$MPI_OPERATOR_VERSION AS builder
 
 ARG OPENMPI_VERSION
 ARG OPENMPI_MD5
+ARG LUSTRE_VERSION
 ENV OPENMPI_VERSION=$OPENMPI_VERSION
 ENV OPENMPI_MD5=$OPENMPI_MD5
+ENV LUSTRE_VERSION=$LUSTRE_VERSION
 
 RUN apt-get update && apt-get install -y \
     ca-certificates \
     wget tar make gcc cmake perl libbz2-dev pkg-config openssl libssl-dev libcap-dev \
     git libattr1-dev \
     openssh-server openssh-client  \
+    linux-headers-generic \
+    libtool libyaml-dev ed libreadline-dev libsnmp-dev mpi-default-dev libselinux-dev libncurses5-dev libncurses-dev \
+    bison flex gnupg libelf-dev gcc libssl-dev bc wget bzip2 build-essential udev kmod cpio module-assistant \
+    libmount-dev libnl-genl-3-dev \
     && rm -rf /var/lib/apt/lists/* \
     && update-ca-certificates
+
+# Build lustre to include in mpifileutils
+COPY build_lustre.sh /build_lustre.sh
+RUN /build_lustre.sh ${LUSTRE_VERSION}
+
+# Create MPI File Utils dependencies directory
+RUN mkdir -p /deps /mfu
+WORKDIR /deps
+
+# Stash the lustre libraries to make it easier to copy out in later stages
+RUN mkdir -p /deps/lustre/lib \
+    && cp -r /usr/lib/*lustre* /deps/lustre/lib/
 
 # Remove the OS binary of openmpi and build from source
 RUN apt-get remove -y openmpi-bin
@@ -45,36 +64,34 @@ RUN [ $(md5sum openmpi-$OPENMPI_VERSION.tar.gz | awk '{print $1}') = "$OPENMPI_M
 RUN gunzip -c openmpi-$OPENMPI_VERSION.tar.gz | tar xf - \
     && cd openmpi-$OPENMPI_VERSION \
     && ./configure --prefix=/opt/openmpi-$OPENMPI_VERSION \
-    && make all install
+    && make -j $(nproc) all \
+    && make install
 RUN cp -r /opt/openmpi-$OPENMPI_VERSION/* /usr
 
 # Build and install MPI File Utils and all dependencies
-RUN mkdir -p /deps /mfu
-WORKDIR /deps
-
 RUN wget https://github.com/hpc/libcircle/releases/download/v0.3/libcircle-0.3.0.tar.gz \
     && tar xfz libcircle-0.3.0.tar.gz \
     && cd libcircle-0.3.0 \
     && ./configure --prefix=/deps/libcircle/lib \
-    && make install
+    && make -j $(nproc) install
 
 RUN wget https://github.com/libarchive/libarchive/releases/download/v3.5.3/libarchive-3.5.3.tar.gz \
     && tar xfz libarchive-3.5.3.tar.gz \
     && cd libarchive-3.5.3 \
     && ./configure --prefix=/deps/libarchive/lib \
-    && make install
+    && make -j $(nproc) install
 
 RUN wget https://github.com/llnl/lwgrp/releases/download/v1.0.3/lwgrp-1.0.3.tar.gz \
     && tar xfz lwgrp-1.0.3.tar.gz \
     && cd lwgrp-1.0.3 \
     && ./configure --prefix=/deps/lwgrp/lib \
-    && make install
+    && make -j $(nproc) install
 
 RUN wget https://github.com/llnl/dtcmp/releases/download/v1.1.1/dtcmp-1.1.1.tar.gz \
     && tar xfz dtcmp-1.1.1.tar.gz \
     && cd dtcmp-1.1.1 \
     && ./configure --prefix=/deps/dtcmp/lib --with-lwgrp=/deps/lwgrp/lib \
-    && make install
+    && make -j $(nproc) install
 
 # Until a new release of mpifileutils is cut, we need to use a tagged commit on
 # our fork to include our dcp changes (i.e. --uid, --gid)
@@ -86,6 +103,7 @@ RUN git clone --depth 1 https://github.com/nearnodeflash/mpifileutils.git --bran
     -DWITH_DTCMP_PREFIX=/deps/dtcmp/lib \
     -DWITH_LibArchive_PREFIX=/deps/libarchive/lib \
     -DCMAKE_INSTALL_PREFIX=/mfu \
+    -DENABLE_LUSTRE=ON \
     && make install
 
 
@@ -104,6 +122,7 @@ RUN cd build \
     -DWITH_DTCMP_PREFIX=/deps/dtcmp/lib \
     -DWITH_LibArchive_PREFIX=/deps/libarchive/lib \
     -DCMAKE_INSTALL_PREFIX=/mfu \
+    -DENABLE_LUSTRE=ON \
     -DCMAKE_BUILD_TYPE=Debug \
     && make install
 
@@ -113,7 +132,8 @@ RUN [ $(md5sum openmpi-$OPENMPI_VERSION.tar.gz | awk '{print $1}') = "$OPENMPI_M
 RUN gunzip -c openmpi-$OPENMPI_VERSION.tar.gz | tar xf - \
     && cd openmpi-$OPENMPI_VERSION \
     && ./configure --prefix=/opt/openmpi-$OPENMPI_VERSION-debug --enable-debug \
-    && make all install
+    && make -j $(nproc) all \
+    && make install
 
 ###############################################################################
 FROM mpioperator/openmpi:v$MPI_OPERATOR_VERSION AS production
@@ -129,11 +149,18 @@ COPY --from=builder /deps/libarchive/lib/ /usr
 COPY --from=builder /deps/lwgrp/lib/ /usr
 COPY --from=builder /deps/dtcmp/lib/ /usr
 
+COPY --from=builder /deps/lustre/lib/ /usr/lib
+
 COPY --from=builder /mfu/ /usr
 
 RUN apt-get remove -y openmpi-bin
 COPY --from=builder /opt/openmpi-$OPENMPI_VERSION /opt/openmpi-$OPENMPI_VERSION
 RUN cp -r /opt/openmpi-$OPENMPI_VERSION/* /usr && rm -rf /openmpi*
+
+# libreadline8 is necessary for dcp with lustre support
+RUN apt-get update && apt-get install -y \
+    libreadline8 \
+    && rm -rf /var/lib/apt/lists/*
 
 # Remove timezone configuration so we can inherit from host
 RUN rm -rf /etc/timezone && rm -rf /etc/localtime

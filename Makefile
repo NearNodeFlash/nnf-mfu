@@ -18,24 +18,31 @@
 # NOTE: git-version-gen will generate a value for VERSION, unless you override it.
 IMAGE_TAG_BASE ?= ghcr.io/nearnodeflash/nnf-mfu
 
+# CONTAINER_TOOL defines the container tool to be used for building images.
+# Be aware that the target commands are only tested with Docker which is
+# scaffolded by default. However, you might want to replace it to use other
+# tools. (i.e. podman)
+CONTAINER_TOOL ?= docker
+
 docker-build: VERSION ?= $(shell cat .version)
 docker-build: TARGET ?= production
 docker-build: .version
-	docker build --target $(TARGET) -t $(IMAGE_TAG_BASE):$(VERSION) .
+	${CONTAINER_TOOL} build --target $(TARGET) -t $(IMAGE_TAG_BASE):$(VERSION) .
 
 docker-build-debug: VERSION ?= $(shell cat .version)
+docker-build-debug: TARGET ?= debug
 docker-build-debug: IMAGE_TAG_BASE := $(IMAGE_TAG_BASE)-debug
 docker-build-debug: .version
-	docker build --target debug -t $(IMAGE_TAG_BASE):$(VERSION) .
+	${CONTAINER_TOOL} build --target $(TARGET) -t $(IMAGE_TAG_BASE):$(VERSION) .
 
 docker-push: VERSION ?= $(shell cat .version)
 docker-push: .version
-	docker push $(IMAGE_TAG_BASE):$(VERSION)
+	${CONTAINER_TOOL} push $(IMAGE_TAG_BASE):$(VERSION)
 
 docker-push-debug: VERSION ?= $(shell cat .version)
 docker-push-debug: IMAGE_TAG_BASE := $(IMAGE_TAG_BASE)-debug
 docker-push-debug: .version
-	docker push $(IMAGE_TAG_BASE):$(VERSION)
+	${CONTAINER_TOOL} push $(IMAGE_TAG_BASE):$(VERSION)
 
 kind-push: VERSION ?= $(shell cat .version)
 kind-push: .version
@@ -54,4 +61,3 @@ kind-push-debug: .version
 
 clean:
 	rm -f .version
-  
