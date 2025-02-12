@@ -77,7 +77,6 @@ jobs:
         push: true
         target: production
         tags: ${{ steps.meta.outputs.tags }}
-        build-args: LUSTRE_VERSION=cray-2.15.B19
 
     - name: "Build the final Docker image in nektos/act"
       # The docker/build-push-action does actions/checkout, and that can't be
@@ -153,7 +152,6 @@ jobs:
         push: true
         target: debug
         tags: ${{ steps.meta.outputs.tags }}
-        build-args: LUSTRE_VERSION=cray-2.15.B19
 
   create_release:
     needs: production

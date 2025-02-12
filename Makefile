@@ -24,25 +24,16 @@ IMAGE_TAG_BASE ?= ghcr.io/nearnodeflash/nnf-mfu
 # tools. (i.e. podman)
 CONTAINER_TOOL ?= docker
 
-# Which tag to pull from the cray lustre source code.
-# **Note:** This must also be set in .github/workflows/main.yaml for both
-# production and debug docker builds.
-CRAY_LUSTRE_VERSION ?= cray-2.15.B19
-
-# Only support linux/amd64 builds. This reduces complexity with installing
-# lustre, which is an option enabled for mpifileutils.
-PLATFORM ?= linux/amd64
-
 docker-build: VERSION ?= $(shell cat .version)
 docker-build: TARGET ?= production
 docker-build: .version
-	${CONTAINER_TOOL} build --platform=$(PLATFORM) --target $(TARGET) --build-arg LUSTRE_VERSION=${CRAY_LUSTRE_VERSION} -t $(IMAGE_TAG_BASE):$(VERSION) .
+	${CONTAINER_TOOL} build --target $(TARGET) -t $(IMAGE_TAG_BASE):$(VERSION) .
 
 docker-build-debug: VERSION ?= $(shell cat .version)
 docker-build-debug: TARGET ?= debug
 docker-build-debug: IMAGE_TAG_BASE := $(IMAGE_TAG_BASE)-debug
 docker-build-debug: .version
-	${CONTAINER_TOOL} build --platform=$(PLATFORM) --target $(TARGET) --build-arg LUSTRE_VERSION=${CRAY_LUSTRE_VERSION} -t $(IMAGE_TAG_BASE):$(VERSION) .
+	${CONTAINER_TOOL} build --target $(TARGET) -t $(IMAGE_TAG_BASE):$(VERSION) .
 
 docker-push: VERSION ?= $(shell cat .version)
 docker-push: .version

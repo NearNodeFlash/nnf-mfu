@@ -21,6 +21,8 @@ ARG MPI_OPERATOR_VERSION=0.6.0
 # See https://www.open-mpi.org/software/ompi/v4.1/ for releases and their checksums.
 ARG OPENMPI_VERSION=4.1.7
 ARG OPENMPI_MD5=787d2bc8b3db336db97c34236934b3df
+# Default to the latest cray 2.15 release
+ARG LUSTRE_VERSION=cray-2.15.B19
 
 FROM mpioperator/openmpi-builder:v$MPI_OPERATOR_VERSION AS builder
 
