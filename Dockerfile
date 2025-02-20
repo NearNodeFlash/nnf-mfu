@@ -75,27 +75,25 @@ RUN wget https://github.com/hpc/libcircle/releases/download/v0.3/libcircle-0.3.0
     && ./configure --prefix=/deps/libcircle/lib \
     && make -j $(nproc) install
 
-RUN wget https://github.com/libarchive/libarchive/releases/download/v3.5.3/libarchive-3.5.3.tar.gz \
-    && tar xfz libarchive-3.5.3.tar.gz \
-    && cd libarchive-3.5.3 \
+RUN wget https://github.com/libarchive/libarchive/releases/download/v3.7.7/libarchive-3.7.7.tar.gz \
+    && tar xfz libarchive-3.7.7.tar.gz \
+    && cd libarchive-3.7.7 \
     && ./configure --prefix=/deps/libarchive/lib \
     && make -j $(nproc) install
 
-RUN wget https://github.com/llnl/lwgrp/releases/download/v1.0.3/lwgrp-1.0.3.tar.gz \
-    && tar xfz lwgrp-1.0.3.tar.gz \
-    && cd lwgrp-1.0.3 \
+RUN wget https://github.com/llnl/lwgrp/releases/download/v1.0.6/lwgrp-1.0.6.tar.gz \
+    && tar xfz lwgrp-1.0.6.tar.gz \
+    && cd lwgrp-1.0.6 \
     && ./configure --prefix=/deps/lwgrp/lib \
     && make -j $(nproc) install
 
-RUN wget https://github.com/llnl/dtcmp/releases/download/v1.1.1/dtcmp-1.1.1.tar.gz \
-    && tar xfz dtcmp-1.1.1.tar.gz \
-    && cd dtcmp-1.1.1 \
+RUN wget https://github.com/llnl/dtcmp/releases/download/v1.1.5/dtcmp-1.1.5.tar.gz \
+    && tar xfz dtcmp-1.1.5.tar.gz \
+    && cd dtcmp-1.1.5 \
     && ./configure --prefix=/deps/dtcmp/lib --with-lwgrp=/deps/lwgrp/lib \
     && make -j $(nproc) install
 
-# Until a new release of mpifileutils is cut, we need to use a tagged commit on
-# our fork to include our dcp changes (i.e. --uid, --gid)
-RUN git clone --depth 1 https://github.com/nearnodeflash/mpifileutils.git --branch nnf-stable-v3 \
+RUN git clone --depth 1 https://github.com/hpc/mpifileutils.git --branch v0.12 \
     && mkdir build \
     && cd build \
     && cmake ../mpifileutils \
