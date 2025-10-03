@@ -24,6 +24,7 @@ ARG OPENMPI_MD5=787d2bc8b3db336db97c34236934b3df
 # Default to the latest cray 2.15 release
 ARG LUSTRE_VERSION=cray-2.15.B19
 
+# Dockerfile for this image can be found at: https://github.com/kubeflow/mpi-operator/blob/release-0.6/build/base/Dockerfile
 FROM mpioperator/openmpi-builder:v$MPI_OPERATOR_VERSION AS builder
 
 ARG OPENMPI_VERSION
@@ -134,6 +135,7 @@ RUN gunzip -c openmpi-$OPENMPI_VERSION.tar.gz | tar xf - \
     && make install
 
 ###############################################################################
+# Dockerfile for this image can be found at: https://github.com/kubeflow/mpi-operator/blob/release-0.6/build/base/Dockerfile
 FROM mpioperator/openmpi:v$MPI_OPERATOR_VERSION AS production
 
 ARG OPENMPI_VERSION
