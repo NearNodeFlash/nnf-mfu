@@ -14,9 +14,8 @@ KERNEL_FLAVOR=$(ls /lib/modules | head -1 | tr '-' '\n' | tail -1)
 KERNEL_BASE_VER=$(ls /lib/modules | head -1 | grep -oP '\d+\.\d+\.\d+-\d+')
 LINUX_DIR=$(ls -d -1 /usr/src/linux-headers-"${KERNEL_BASE_VER}-${KERNEL_FLAVOR}")
 
-git clone --depth=1 https://github.com/Cray/lustre.git
+git clone --depth=1 --branch "$CRAY_LUSTRE_VERSION" https://github.com/Cray/lustre.git
 cd lustre
-git checkout "$CRAY_LUSTRE_VERSION"
 sh autogen.sh
 ./configure --disable-server --enable-client --disable-tests --enable-mpitests=no \
     --disable-gss-keyring --enable-gss=no \
